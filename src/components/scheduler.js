@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 const NoteLength = Object.freeze({
   whole: 1,
@@ -10,16 +10,17 @@ const NoteLength = Object.freeze({
 
 const temp = [NoteLength["half"], NoteLength["quarter"], NoteLength["quarter"]];
 
-function Scheduler() {
+function Scheduler(props) {
   const [playing, setPlaying] = useState(false);
-  const audioContext = new AudioContext();
+  // const audioContext = new AudioContext();
   var numberOfBeats = 4;
   var nextNoteTime = 0.0;
   var currentBarPercentage = 0;
   var scheduleAheadTime = 0.1;
   var lookahead = 25.0;
-  const timerWorker = new Worker("./metronomeworker.js");
-  timerWorker.onmessage = function (e) {
+  // const timerWorker = useRef(props.worker);
+  // const timerWorker = useRef(new Worker("./metronomeworker.js"));
+  props.worker.onmessage = function (e) {
     if (e.data === "tick") {
       console.log("tick!");
       scheduler();
@@ -35,7 +36,7 @@ function Scheduler() {
 
   const nextNote = () => {
     // Advance current note and time
-    var secondsPerBeat = 60.0 / tempo; // Notice this picks up the CURRENT
+    var secondsPerBeat = 60.0 / props.tempo; // Notice this picks up the CURRENT
     // tempo value to calculate beat length.
     if (globalNotesQueue.length === 0) {
       currentBarPercentage = 0;
@@ -52,8 +53,8 @@ function Scheduler() {
 
   const scheduleNote = (time) => {
     // create an oscillator
-    var osc = audioContext.createOscillator();
-    osc.connect(audioContext.destination);
+    var osc = props.audioContext.createOscillator();
+    osc.connect(props.audioContext.destination);
     console.log(
       "currentBarPercentage in scheduleNote: " + currentBarPercentage
     );
@@ -71,7 +72,7 @@ function Scheduler() {
   const scheduler = () => {
     // while there are notes that will need to play before the next interval,
     // schedule them and advance the pointer.
-    while (nextNoteTime < audioContext.currentTime + scheduleAheadTime) {
+    while (nextNoteTime < props.audioContext.currentTime + scheduleAheadTime) {
       scheduleNote(nextNoteTime);
       nextNote();
     }
@@ -81,14 +82,28 @@ function Scheduler() {
     if (playing) {
       // start playing
       currentBarPercentage = 0;
-      nextNoteTime = audioContext.currentTime;
-      timerWorker.postMessage("start");
+      nextNoteTime = props.audioContext.currentTime;
+      props.worker.postMessage("start");
     } else {
-      timerWorker.postMessage("stop");
+      props.worker.postMessage("stop");
     }
   };
 
-  useEffect(() => {var buffer = audioContext.createBuffer(1, 1, 22050);   var node = audioContext.createBufferSource(); node.buffer = buffer; node.start(0); timerWorker.postMessage({ interval: lookahead })}, []);
+  // useEffect(() => {
+  //   var buffer = audioContext.createBuffer(1, 1, 22050);
+  //   var node = audioContext.createBufferSource();
+  //   node.buffer = buffer;
+  //   node.start(0);
+  //   props.worker.onmessage = function (e) {
+  //     if (e.data === "tick") {
+  //       console.log("tick!");
+  //       scheduler();
+  //     } else {
+  //      console.log("message: " + e.data);
+  //     }
+  //   }
+  //   props.worker.postMessage({ interval: lookahead });
+  //   }, []);
 
   useEffect(() => {
     play();
